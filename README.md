@@ -1,4 +1,4 @@
-# Insight-Agent Deployment on GCP
+# Application Deployment on GCP
 
 ## Architecture Overview
 
