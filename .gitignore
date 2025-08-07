@@ -1,0 +1,15 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Environments
+.env
+.env.production
+.env.local
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl

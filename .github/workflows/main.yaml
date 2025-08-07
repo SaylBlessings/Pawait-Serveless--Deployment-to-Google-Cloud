@@ -1,0 +1,80 @@
+name: CI/CD Pipeline to GCP
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  ARTIFACT_REGISTRY_REPO: insight-agent-repo
+  IMAGE_NAME: insight-agent-service
+  
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    # Permissions for GitHub Actions to authenticate with GCP.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Set up Docker'
+        uses: 'docker/setup-docker@v3'
+
+      - name: 'Configure Docker to use Artifact Registry'
+        run: gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
+
+      - name: 'Build and Push Docker Image'
+        run: |
+          # Use a unique tag for the image based on the commit SHA
+          IMAGE_TAG="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${IMAGE_NAME}:${GITHUB_SHA}"
+          echo "Building and pushing image with tag: $IMAGE_TAG"
+          
+          # Build the Docker image
+          docker build -t "$IMAGE_TAG" ./app
+          
+          # Push the image to Artifact Registry
+          docker push "$IMAGE_TAG"
+          
+          # Pass the image tag to the next step as an environment variable
+          echo "IMAGE_NAME_WITH_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: 'Setup Terraform'
+        uses: 'hashicorp/setup-terraform@v2'
+        with:
+          terraform_version: '1.2.9'
+          
+      - name: 'Initialize Terraform'
+        id: init
+        run: terraform init
+        working-directory: ./terraform
+        
+      - name: 'Validate Terraform Configuration'
+        id: validate
+        run: terraform validate
+        working-directory: ./terraform
+        
+      - name: 'Plan Terraform Deployment'
+        id: plan
+        run: terraform plan -var="gcp_project_id=${GCP_PROJECT_ID}" -var="image_name_with_tag=${{ env.IMAGE_NAME_WITH_TAG }}"
+        working-directory: ./terraform
+        
+      - name: 'Apply Terraform Deployment'
+        id: apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -var="gcp_project_id=${GCP_PROJECT_ID}" -var="image_name_with_tag=${{ env.IMAGE_NAME_WITH_TAG }}"
+        working-directory: ./terraform
