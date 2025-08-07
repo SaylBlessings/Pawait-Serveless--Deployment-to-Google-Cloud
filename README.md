@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-The solution leverages Google Cloud Platform's serverless and managed services to create a highly scalable and cost-effective deployment for the Insight-Agent application. The architecture is centered around a serverless API that is not publicly accessible, enhancing its security posture.
+The solution leverages Google Cloud Platform's serverless and managed services to create a highly scalable and cost-effective deployment for the application. The architecture is centered around a serverless API that is not publicly accessible, enhancing its security posture.
 
 The core components and their interactions are as follows:
 
